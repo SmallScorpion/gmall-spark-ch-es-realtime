@@ -9,7 +9,13 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
+
+
+
+    <groupId>com.warehouse</groupId>
     <artifactId>gmall-realtime</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <name>gmall-realtime</name>
 
     <dependencies>
 
