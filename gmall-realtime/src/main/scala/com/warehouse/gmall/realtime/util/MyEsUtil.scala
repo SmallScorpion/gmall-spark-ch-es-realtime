@@ -4,7 +4,7 @@ import java.{lang, util}
 
 import io.searchbox.client.config.HttpClientConfig
 import io.searchbox.client.{JestClient, JestClientFactory}
-import io.searchbox.core.{Index, Search, SearchResult}
+import io.searchbox.core.{Bulk, BulkResult, Index, Search, SearchResult}
 import org.elasticsearch.index.query.{BoolQueryBuilder, MatchQueryBuilder, TermQueryBuilder}
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.highlight.HighlightBuilder
@@ -126,6 +126,30 @@ object MyEsUtil {
     println(hits.mkString("\n"))
     jest.close()
 
+  }
+
+
+  /**
+   * 批量保存
+   */
+  def bulkDoc( sourceList: List[Any], indexName: String ): Unit = {
+
+    if ( sourceList != null && sourceList.nonEmpty ) {
+
+      val jest: JestClient = getClient
+
+      // 构造批次操作
+      val bulkBuilder = new Bulk.Builder
+      for (source <- sourceList ) {
+      val index = new Index.Builder(source).index(indexName).`type`("_doc").build()
+        bulkBuilder.addAction(index)
+      }
+
+      val result: BulkResult = jest.execute(bulkBuilder.build())
+      val items: util.List[BulkResult#BulkResultItem] = result.getItems
+      println("保存到es: " + items.size() + " 条数")
+      jest.close()
+    }
   }
 
 
