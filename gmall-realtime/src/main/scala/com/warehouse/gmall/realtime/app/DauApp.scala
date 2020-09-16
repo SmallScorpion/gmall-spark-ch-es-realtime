@@ -6,8 +6,9 @@ import java.util.Date
 
 import com.alibaba.fastjson.{JSON, JSONObject}
 import com.warehouse.gmall.realtime.bean.DauInfo
-import com.warehouse.gmall.realtime.util.{MyEsUtil, MyKafkaUtil, RedisUtil}
+import com.warehouse.gmall.realtime.util.{MyEsUtil, MyKafkaUtil, OffsetManager, RedisUtil}
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.common.TopicPartition
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -15,6 +16,9 @@ import redis.clients.jedis.Jedis
 
 import scala.collection.mutable.ListBuffer
 
+/**
+ * 日活
+ */
 object DauApp {
 
   def main(args: Array[String]): Unit = {
@@ -22,9 +26,21 @@ object DauApp {
     val sparkConf: SparkConf = new SparkConf().setAppName("dau_app").setMaster("local[4]")
     val ssc: StreamingContext = new StreamingContext( sparkConf, Seconds(5) )
 
-    // TODO  消费Kafka数据
+
     val topic: String = "GMALL_SPARK_CK_ES_START"
-    val recordInputStream: InputDStream[ConsumerRecord[String, String]] = MyKafkaUtil.getKafkaStream( topic, ssc )
+    val groupId = "DAU_GROUP"
+
+    // TODO 读取偏移量
+    val kafkaOffsetMap: Map[TopicPartition, Long] = OffsetManager.getOffset( topic, groupId )
+
+    // TODO 消费kafka数据
+    var recordInputStream: InputDStream[ConsumerRecord[String, String]] = null
+
+    if( kafkaOffsetMap != null && kafkaOffsetMap.nonEmpty ) {
+      recordInputStream = MyKafkaUtil.getKafkaStream( topic, ssc, kafkaOffsetMap, groupId )
+    } else {
+      recordInputStream = MyKafkaUtil.getKafkaStream( topic, ssc )
+    }
 
     // recordInputStream.map( _.value() ).print()
 
