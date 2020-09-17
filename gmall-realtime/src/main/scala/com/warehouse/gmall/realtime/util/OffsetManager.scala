@@ -3,6 +3,7 @@ package com.warehouse.gmall.realtime.util
 import java.util
 
 import org.apache.kafka.common.TopicPartition
+import org.apache.spark.streaming.kafka010.OffsetRange
 import redis.clients.jedis.Jedis
 
 import scala.collection.mutable
@@ -25,9 +26,12 @@ object OffsetManager {
     val offsetKey = "offset:" + topicName + ":" + groupId
     val offsetMap: util.Map[String, String] = jedis.hgetAll(offsetKey)
 
+    jedis.close()
+
     import scala.collection.JavaConversions._
 
     val kafkaOffsetMap: Map[TopicPartition, Long] = offsetMap.map { case (partitionId, offset) =>
+      println( "读取分区：" + partitionId + ":" + offset )
       (new TopicPartition(topicName, partitionId.toInt), offset.toLong)
     }.toMap
 
@@ -35,7 +39,33 @@ object OffsetManager {
   }
 
 
-  // TODO 把偏移量写入redis
+  /**
+   * 把偏移量写入redis
+   * @param topicName
+   * @param groupId
+   * @param offsetRanges
+   */
+  def saveOffset( topicName: String, groupId: String, offsetRanges: Array[OffsetRange] ): Unit = {
 
+
+    val offsetKey = "offset:" + topicName + ":" + groupId
+
+    // 转换结构 -> map
+    val offsetMap: util.Map[String, String] = new util.HashMap()
+    for (elem <- offsetRanges) {
+      val partition: Int = elem.partition
+      val untilOffset: Long = elem.untilOffset
+      offsetMap.put( partition + "", untilOffset + "" )
+      println( "写入分区：" + partition + ":" + elem.fromOffset + "--->" + elem.untilOffset )
+    }
+
+    // 写入redis
+    if( offsetMap != null && offsetMap.size() > 0){
+      val jedis: Jedis = RedisUtil.getJedisClient
+      jedis.hmset( offsetKey,  offsetMap)
+      jedis.close()
+    }
+
+  }
 
 }

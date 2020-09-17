@@ -11,6 +11,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
+import org.apache.spark.streaming.kafka010.{HasOffsetRanges, OffsetRange}
 import org.apache.spark.{SparkConf, SparkContext}
 import redis.clients.jedis.Jedis
 
@@ -30,7 +31,7 @@ object DauApp {
     val topic: String = "GMALL_SPARK_CK_ES_START"
     val groupId = "DAU_GROUP"
 
-    // TODO 读取偏移量
+    // TODO 读取Redis偏移量
     val kafkaOffsetMap: Map[TopicPartition, Long] = OffsetManager.getOffset( topic, groupId )
 
     // TODO 消费kafka数据
@@ -44,8 +45,17 @@ object DauApp {
 
     // recordInputStream.map( _.value() ).print()
 
+    // 得到本批次的偏移量的结束位置，用于更新redis中的偏移量
+    var OffsetRanges: Array[OffsetRange] = Array.empty[OffsetRange]
+    val InputGetOffsetDstream: DStream[ConsumerRecord[String, String]] =
+        recordInputStream.transform { rdd =>
+          // driver 执行
+          OffsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+          rdd
+    }
+
     // TODO redis去重
-    val jsonObjDstream: DStream[JSONObject] = recordInputStream.map { record =>
+    val jsonObjDstream: DStream[JSONObject] = InputGetOffsetDstream.map { record =>
       // 提取日志
       val jsonString: String = record.value()
       val jsonObj: JSONObject = JSON.parseObject(jsonString)
@@ -91,7 +101,7 @@ object DauApp {
       // 结果集
       val filterList = new ListBuffer[JSONObject]
       val jsonList: List[JSONObject] = jsonObjItr.toList
-      println("过滤前" + jsonList.size)
+      //println("过滤前" + jsonList.size)
       for (jsonObj <- jsonList) {
         // 获取字段
         val dt: String = jsonObj.getString("dt")
@@ -108,7 +118,7 @@ object DauApp {
       }
 
       jedis.close()
-      println("过滤后" + jsonList.size)
+      //println("过滤后" + jsonList.size)
       filterList.toIterator
 
     }
@@ -140,7 +150,11 @@ object DauApp {
         val dt: String = new SimpleDateFormat("yyyy-MM-dd").format( new Date() )
         // 批量保存
         MyEsUtil.bulkDoc(dauList, "gmall_ch_dau_info" + dt)
+
       }
+
+      // TODO 提交偏移量
+      OffsetManager.saveOffset( topic, groupId, OffsetRanges )
 
     }
 

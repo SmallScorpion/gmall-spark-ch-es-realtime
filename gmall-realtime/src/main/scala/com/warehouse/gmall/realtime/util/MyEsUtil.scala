@@ -147,7 +147,7 @@ object MyEsUtil {
 
       val result: BulkResult = jest.execute(bulkBuilder.build())
       val items: util.List[BulkResult#BulkResultItem] = result.getItems
-      println("保存到es: " + items.size() + " 条数")
+      // println("保存到es: " + items.size() + " 条数")
       jest.close()
     }
   }
