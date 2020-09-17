@@ -132,7 +132,7 @@ object MyEsUtil {
   /**
    * 批量保存
    */
-  def bulkDoc( sourceList: List[Any], indexName: String ): Unit = {
+  def bulkDoc( sourceList: List[(String, Any)], indexName: String ): Unit = {
 
     if ( sourceList != null && sourceList.nonEmpty ) {
 
@@ -140,8 +140,8 @@ object MyEsUtil {
 
       // 构造批次操作
       val bulkBuilder = new Bulk.Builder
-      for (source <- sourceList ) {
-      val index = new Index.Builder(source).index(indexName).`type`("_doc").build()
+      for ( (id,source) <- sourceList ) {
+      val index = new Index.Builder(source).index(indexName).`type`("_doc").id( id ).build()
         bulkBuilder.addAction(index)
       }
 

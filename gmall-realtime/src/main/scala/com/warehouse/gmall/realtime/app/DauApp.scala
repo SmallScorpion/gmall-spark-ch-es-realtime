@@ -132,9 +132,9 @@ object DauApp {
         val jsonList: List[JSONObject] = jsonItr.toList
 
         // 转换结构
-        val dauList: List[DauInfo] = jsonList.map { jsonObj =>
+        val dauList: List[ (String, DauInfo) ] = jsonList.map { jsonObj =>
           val commonJSONObj: JSONObject = jsonObj.getJSONObject("common")
-          DauInfo(
+          val dauInfo = DauInfo(
             commonJSONObj.getString("mid"),
             commonJSONObj.getString("uid"),
             commonJSONObj.getString("ar"),
@@ -144,6 +144,7 @@ object DauApp {
             jsonObj.getString("hr"),
             jsonObj.getLong("ts")
           )
+          ( dauInfo.mid, dauInfo )
         }
 
         // 获取当前日期
