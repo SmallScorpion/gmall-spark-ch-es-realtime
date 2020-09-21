@@ -3,6 +3,7 @@ package com.warehouse.gmall.realtime.util
 import java.util.Properties
 
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.spark.streaming.StreamingContext
@@ -53,5 +54,42 @@ object MyKafkaUtil {
     val dStream = KafkaUtils.createDirectStream[String,String](ssc, LocationStrategies.PreferConsistent,ConsumerStrategies.Subscribe[String,String](Array(topic),kafkaParam,offsets))
     dStream
   }
+
+  /**
+   * 将数据发送到Kafka中
+   */
+  var kafkaProducer: KafkaProducer[String, String] = null
+
+  def createKafkaProducer: KafkaProducer[String, String] = {
+    val properties = new Properties
+    properties.put("bootstrap.servers", broker_list)
+    properties.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    properties.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    // 幂等性
+    properties.put("enable.idompotence",(true: java.lang.Boolean))
+    var producer: KafkaProducer[String, String] = null
+    try
+
+      producer = new KafkaProducer[String, String](properties)
+    catch {
+      case e: Exception =>
+        e.printStackTrace()
+    }
+    producer
+  }
+
+  def send(topic: String, msg: String): Unit = {
+    if (kafkaProducer == null) kafkaProducer = createKafkaProducer
+    kafkaProducer.send(new ProducerRecord[String, String](topic, msg))
+
+  }
+  // key是手动分区键
+  def send(topic: String,key:String, msg: String): Unit = {
+    if (kafkaProducer == null) kafkaProducer = createKafkaProducer
+    kafkaProducer.send(new ProducerRecord[String, String](topic, key, msg))
+
+
+  }
+
 }
 
