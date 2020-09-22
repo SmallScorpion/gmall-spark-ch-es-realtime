@@ -15,7 +15,7 @@ import scala.util.parsing.json.JSONObject
 object BaseDbCanal {
   def main(args: Array[String]): Unit = {
 
-    val sparkConf: SparkConf = new SparkConf().setAppName("base_db_canal_app").setMaster("local[4]")
+    val sparkConf: SparkConf = new SparkConf().setAppName("base_db_canal_app").setMaster("local[*]")
     val ssc: StreamingContext = new StreamingContext( sparkConf, Seconds(5) )
 
 
@@ -31,27 +31,28 @@ object BaseDbCanal {
     if( kafkaOffsetMap != null && kafkaOffsetMap.nonEmpty ) {
       recordInputStream = MyKafkaUtil.getKafkaStream( topic, ssc, kafkaOffsetMap, groupId )
     } else {
-      recordInputStream = MyKafkaUtil.getKafkaStream( topic, ssc )
+      recordInputStream = MyKafkaUtil.getKafkaStream( topic, ssc, groupId )
     }
 
     // recordInputStream.map( _.value() ).print()
 
-    // 得到本批次的偏移量的结束位置，用于更新redis中的偏移量
+    // TODO 得到本批次的偏移量的结束位置，用于更新redis中的偏移量
     var OffsetRanges: Array[OffsetRange] = Array.empty[OffsetRange]
-    val InputGetOffsetDstream: DStream[ConsumerRecord[String, String]] =
+    val inputGetOffsetDstream: DStream[ConsumerRecord[String, String]] =
       recordInputStream.transform { rdd =>
         // driver 执行
         OffsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
         rdd
       }
 
-    // 提取数据
-    val jsonObjDstream: DStream[fastjson.JSONObject] = InputGetOffsetDstream.map { record =>
+    // TODO 提取Kafka所有数据
+    val jsonObjDstream: DStream[fastjson.JSONObject] = inputGetOffsetDstream.map { record =>
       val jsonString: String = record.value()
       val jsonObj: fastjson.JSONObject = JSON.parseObject(jsonString)
       jsonObj
     }
 
+    // TODO 提取Kafka中有效数据并根据表名进行分流处理
     jsonObjDstream.foreachRDD { rdd=>
       // 推回Kafka
       rdd.foreach { jsonObj =>
@@ -73,7 +74,7 @@ object BaseDbCanal {
         }
 
       }
-      // 提交偏移量
+      // TODO 提交偏移量
       OffsetManager.saveOffset( topic, groupId, OffsetRanges )
     }
 

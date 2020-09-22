@@ -31,7 +31,7 @@ object OffsetManager {
     import scala.collection.JavaConversions._
 
     val kafkaOffsetMap: Map[TopicPartition, Long] = offsetMap.map { case (partitionId, offset) =>
-      // println( "读取分区：" + partitionId + ":" + offset )
+      println( "读取分区：" + partitionId + ":" + offset )
       (new TopicPartition(topicName, partitionId.toInt), offset.toLong)
     }.toMap
 
@@ -56,7 +56,7 @@ object OffsetManager {
       val partition: Int = elem.partition
       val untilOffset: Long = elem.untilOffset
       offsetMap.put( partition + "", untilOffset + "" )
-      // println( "写入分区：" + partition + ":" + elem.fromOffset + "--->" + elem.untilOffset )
+      println( "写入分区：" + partition + ":" + elem.fromOffset + "--->" + elem.untilOffset )
     }
 
     // 写入redis
